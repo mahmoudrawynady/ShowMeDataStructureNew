@@ -1,218 +1,214 @@
 import sys
-import time
-
-class Node(object):
-    def __init__(self, count, ch = None):
-        self.child_0 = None
-        self.child_1 = None
-        self.count = count 
-        self.ch = ch
-
-    def __str__(self):
-        return "(char: {}, count: {})".format(self.ch, self.count)
+from queue import PriorityQueue
 
 
-# ENCODING
 def huffman_encoding(data):
+    """
+    Encodes the given string data using the Huffman Coding algorithm.
+    :param data: String to be encoded.
+    :return: tuple - encoded data, Huffman Tree
+    """
+    if not bool(data):
+        return '', None
 
-    # count frequencies
-    frequency = {}
+    # Step 1: Map the frequencies.
+    frequencies = map_frequency(data)
+
+    # Step 2: Build the Huffman Tree.
+    tree = build_tree(frequencies)
+
+    # Step 3: Map the codes from the Huffman Tree.
+    code_mappings = map_codes(tree, '', dict())
+
+    # Step 4: Encode the original data using the code mappings from the Huffman Tree.
+    encoding = ''
     for char in data:
-        frequency[char] = frequency.get(char,0) +1
-    
-    if len(frequency)<2:
-        if data == "":
-            return "0", Node(1,"")
-        else:
-            return encode(data, generate_huffman_code(Node(1,data[0]))), Node(1,data[0])
+        encoding += code_mappings[char]
 
-    # make nodes with counts and associated chars
-    nodes = {}
-    for char in frequency:
-        nodes[char] = Node(frequency[char], char)
+    return encoding, tree
 
-    # generate Tree
-    priority = 1
-    node_0 = None
-    node_1 = None
-    parent_node = None
-    while len(nodes)>1:
-        change_priority = True
-        min_priority = None
-        for char in nodes:            
-            if nodes[char].count == priority:
-                if not node_0:
-                    node_0 = nodes[char]
-                elif not node_1: 
-                    node_1 = nodes[char]
-            elif not min_priority or nodes[char].count< min_priority:
-                min_priority = nodes[char].count
-            
-            if node_0 and node_1:
-                parent_node = Node(node_0.count + node_1.count,
-                                   node_0.ch + node_1.ch)
-                parent_node.child_0 = node_0
-                parent_node.child_1 = node_1
-                nodes[parent_node.ch] = parent_node
-                nodes.pop(node_0.ch)
-                nodes.pop(node_1.ch)
-                node_0 = None
-                node_1 = None
-                change_priority = False
-                break
 
-        if change_priority:
-            priority = min_priority
-    tree = parent_node
-
-    # generate encoding
-    encoding = generate_huffman_code(tree)
-
-    encoded_data = encode(data, encoding)
-
-    return encoded_data, tree
-
-def generate_huffman_code(node , code = ""):
-    encoding = {}
-    if node:
-        if not (node.child_0 or node.child_1):
-            if code == "": # case of only one letter
-                encoding.update({node.ch: "0"})
-            else:
-                encoding.update({node.ch: code})
-        encoding.update(generate_huffman_code(node.child_0, code + "0"))
-        encoding.update(generate_huffman_code(node.child_1, code + "1"))
-    return encoding
-
-def encode(data , encoding):
-    encoded_data = data
-    for char in encoding:
-        encoded_data = encoded_data.replace(char, encoding[char])
-    return encoded_data
-    
-
-# DECODING
 def huffman_decoding(data, tree):
-    
-    encoding = generate_huffman_reverse_code(tree)
-    decoded_message = ""
-    code = ""
-    for c in data:
-        code += c
-        if code in encoding:
-            decoded_message += encoding[code]
-            code = ""
-    
-    return decoded_message
+    """
+    Decode the given encoded (compressed) data using the given Huffman Tree.
+    :param data: the encoded data to be decoded.
+    :param tree: the Huffman Tree used to encode the original, uncompressed data
+    :return: string - the decoded data string
+    """
+    decoded = ''
+    node = tree
 
-def generate_huffman_reverse_code(node , code = ""):
-    encoding = {}
-    if node:
-        if not (node.child_0 or node.child_1):
-            if code == "": # case of only one letter
-                encoding.update({"0": node.ch})
-            else:
-                encoding.update({code: node.ch})
-        encoding.update(generate_huffman_reverse_code(node.child_0, code + "0"))
-        encoding.update(generate_huffman_reverse_code(node.child_1, code + "1"))
-    return encoding
+    for bit in data:
 
+        # Walk to the left child.
+        if int(bit) == 0:
+            if type(node.left_child) is HuffmanNode:
+                node = node.left_child
 
+        # Walk to the right child.
+        else:
+            if type(node.right_child) is HuffmanNode:
+                node = node.right_child
 
-# TEST
-if __name__ == "__main__":
-    codes = {}
+        # If leaf, capture the char and rewind to the root.
+        if node.left_child is None and node.right_child is None:
+            decoded += node.char
+            node = tree
 
-    print('TEST 1:')
-    a_great_sentence = "The bird is the word"
-    print ("The size of the data is: {}\n".format(sys.getsizeof(a_great_sentence)))
-    print ("The content of the data is: {}\n".format(a_great_sentence))
-    encoded_data, tree = huffman_encoding(a_great_sentence)
-    print ("The size of the encoded data is: {}\n".format(sys.getsizeof(int(encoded_data, base=2))))
-    print ("The content of the encoded data is: {}\n".format(encoded_data))
-    decoded_data = huffman_decoding(encoded_data, tree)
-    print ("The size of the decoded data is: {}\n".format(sys.getsizeof(decoded_data)))
-    print ("The content of the dencoded data is: {}\n".format(decoded_data))
+    return decoded
 
 
-    
-    print('\n\n------------------------------------------------')
-    print('TEST 2:')
-    a_great_sentence = "short"
-    print ("The size of the data is: {}\n".format(sys.getsizeof(a_great_sentence)))
-    print ("The content of the data is: {}\n".format(a_great_sentence))
-    encoded_data, tree = huffman_encoding(a_great_sentence)
-    print ("The size of the encoded data is: {}\n".format(sys.getsizeof(int(encoded_data, base=2))))
-    print ("The content of the encoded data is: {}\n".format(encoded_data))
-    decoded_data = huffman_decoding(encoded_data, tree)
-    print ("The size of the decoded data is: {}\n".format(sys.getsizeof(decoded_data)))
-    print ("The content of the dencoded data is: {}\n".format(decoded_data))
-
-    
-    print('\n\n------------------------------------------------')
-    print('TEST 3:')
-    a_great_sentence = "This is a very long sentence that will benefit more from the encoding because it probably has many repeating letters that appear again and again and again and again and and again and and again and and again and and again and and again and and again and and again and and again and and again and and again again and again and again and again and and again and and again and and again and and again and and again and and again and and again and and again and and again and and again again and again and again and again and and again and and again and and again and and again and and again and and again and and again and and again and and again and and again"
-    print ("The size of the data is: {}\n".format(sys.getsizeof(a_great_sentence)))
-    print ("The content of the data is: {}\n".format(a_great_sentence))
-    encoded_data, tree = huffman_encoding(a_great_sentence)
-    print ("The size of the encoded data is: {}\n".format(sys.getsizeof(int(encoded_data, base=2))))
-    print ("The content of the encoded data is: {}\n".format(encoded_data))
-    decoded_data = huffman_decoding(encoded_data, tree)
-    print ("The size of the decoded data is: {}\n".format(sys.getsizeof(decoded_data)))
-    print ("The content of the dencoded data is: {}\n".format(decoded_data))
+class HuffmanNode:
+    def __init__(self, freq, char):
+        self.freq = freq
+        self.char = char
+        self.left_child = None
+        self.right_child = None
 
 
+def map_frequency(data):
+    """
+    Maps the character frequencies (counts) into a dictionary (hashtable).
+    :param data: String to be mapped.
+    :return: list of tuples, e.g. (frequency, probability, character)
+    """
+    frequencies = dict()
+
+    if not bool(data):
+        return frequencies
+
+    total = 0
+    for char in data:
+        if char in frequencies:
+            frequencies[char] += 1
+        else:
+            frequencies[char] = 1
+        total += 1
+
+    map = list()
+
+    # When there's a single character, set a dummy node to ensure we can build the tree.
+    if len(frequencies) == 1:
+        map.append((0, None, HuffmanNode(0, None)))
+
+    for char, freq in frequencies.items():
+        map.append((freq, char, HuffmanNode(freq, char)))
+
+    return map
 
 
-    print('\n\n------------------------------------------------')
-    print('TEST 4:')
-    a_great_sentence = "a"
-    print ("The size of the data is: {}\n".format(sys.getsizeof(a_great_sentence)))
-    print ("The content of the data is: {}\n".format(a_great_sentence))
-    encoded_data, tree = huffman_encoding(a_great_sentence)
-    print ("The size of the encoded data is: {}\n".format(sys.getsizeof(int(encoded_data, base=2))))
-    print ("The content of the encoded data is: {}\n".format(encoded_data))
-    decoded_data = huffman_decoding(encoded_data, tree)
-    print ("The size of the decoded data is: {}\n".format(sys.getsizeof(decoded_data)))
-    print ("The content of the dencoded data is: {}\n".format(decoded_data))
+def build_tree(frequencies):
+    """
+    Builds the Huffman tree from the given frequencies list.
+    :param frequencies: list of frequencies.
+    :return: root of the binary tree
+    """
+    if len(frequencies) == 0:
+        return
+
+    queue = PriorityQueue()
+    for f in frequencies:
+        queue.put(f)
+
+    p3 = 0
+    while queue.qsize() > 1:
+        # Pop the 1st 2 entries.
+        lt_freq, lt_char, lt_node = queue.get()
+        rt_freq, rt_char, rt_node = queue.get()
+
+        # Build the parent node.
+        p_freq = lt_freq + rt_freq
+        parent = HuffmanNode(p_freq, None)
+        parent.left_child = lt_node
+        parent.right_child = rt_node
+
+        # str(p3) is just in case the priority queue needs to compare parent to a leaf when sorting the binary tree.
+        queue.put((p_freq, str(p3), parent))
+        p3 += 1
+
+    root = queue.get()
+    return root[2]
 
 
-    
-    print('\n\n------------------------------------------------')
-    print('TEST 5:')
-    a_great_sentence = ""
-    print ("The size of the data is: {}\n".format(sys.getsizeof(a_great_sentence)))
-    print ("The content of the data is: {}\n".format(a_great_sentence))
-    encoded_data, tree = huffman_encoding(a_great_sentence)
-    print ("The size of the encoded data is: {}\n".format(sys.getsizeof(int(encoded_data, base=2))))
-    print ("The content of the encoded data is: {}\n".format(encoded_data))
-    decoded_data = huffman_decoding(encoded_data, tree)
-    print ("The size of the decoded data is: {}\n".format(sys.getsizeof(decoded_data)))
-    print ("The content of the dencoded data is: {}\n".format(decoded_data))
+def map_codes(node, code, map):
+    """
+    Map the codes of the Huffman Tree by recursively walking root to leaf.
+    :param node: Current HuffmanNode
+    :param code: The current code of 1s and 0s.
+    :param map: Dictionary of code mappings
+    :return: Dictionary of code mappings where char is the key and the code is the value.
+    """
+
+    if type(node.left_child) is HuffmanNode:
+        map_codes(node.left_child, code + '0', map)
+    else:
+         map[node.char] = code
+
+    if type(node.right_child) is HuffmanNode:
+        map_codes(node.right_child, code + '1', map)
+    else:
+        map[node.char] = code
+
+    return map
 
 
-    
-    print('\n\n------------------------------------------------')
-    print('TEST 6:')
-    a_great_sentence = "aaaaaaaaaa aaaaaaaaaaaaaaaaaaaaaaaaaa aaaaaaaaaaaaaaaaaaaaaaaa aaaaaaaa"
-    print ("The size of the data is: {}\n".format(sys.getsizeof(a_great_sentence)))
-    print ("The content of the data is: {}\n".format(a_great_sentence))
-    encoded_data, tree = huffman_encoding(a_great_sentence)
-    print ("The size of the encoded data is: {}\n".format(sys.getsizeof(int(encoded_data, base=2))))
-    print ("The content of the encoded data is: {}\n".format(encoded_data))
-    decoded_data = huffman_decoding(encoded_data, tree)
-    print ("The size of the decoded data is: {}\n".format(sys.getsizeof(decoded_data)))
-    print ("The content of the dencoded data is: {}\n".format(decoded_data))
+if __name__ == '__main__':
 
-     
-    print('\n\n------------------------------------------------')
-    print('TEST 7:')
-    a_great_sentence = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    print ("The size of the data is: {}\n".format(sys.getsizeof(a_great_sentence)))
-    print ("The content of the data is: {}\n".format(a_great_sentence))
-    encoded_data, tree = huffman_encoding(a_great_sentence)
-    print ("The size of the encoded data is: {}\n".format(sys.getsizeof(int(encoded_data, base=2))))
-    print ("The content of the encoded data is: {}\n".format(encoded_data))
-    decoded_data = huffman_decoding(encoded_data, tree)
-    print ("The size of the decoded data is: {}\n".format(sys.getsizeof(decoded_data)))
-    print ("The content of the dencoded data is: {}\n".format(decoded_data))
+    def run_edge_case_no_data():
+        print('Running no data given edge case...')
+        test_data = [
+            '',
+            None,
+            False,
+            {},
+        ]
+        for data in test_data:
+            print(huffman_encoding(data))    # ('', None)
+
+    def run_edge_case_repeating_char():
+        print('\nRunning single repeating character edge case...')
+        test_data = [
+            'aaaaaa',
+            'bbbbbb',
+            '1111111',
+        ]
+
+        for data in test_data:
+            print("Data: {}".format(data))
+            print ("Data size: {}".format(sys.getsizeof(data)))
+
+            encoded_data, tree = huffman_encoding(data)
+            print("Encoded: {}".format(encoded_data))
+            print ("Encoded size: {}".format(sys.getsizeof(int(encoded_data, base=2))))
+
+            decoded_data = huffman_decoding(encoded_data, tree)
+            print("Decoded: {}\n".format(decoded_data))
+            print ("Decoded size: {}".format(sys.getsizeof(decoded_data)))
+
+    def run_test_cases():
+        print('\nRunning multiple strings...')
+        test_data = [
+            'n',
+            'ab ba',
+            'abc123'
+            'Huffman coding',
+            'ABRACADABRA',
+            'Mississippi',
+            'Sally sells seashells down by the seashore.'
+        ]
+
+        for data in test_data:
+            print("Data: {}".format(data))
+            print ("Data size: {}".format(sys.getsizeof(data)))
+
+            encoded_data, tree = huffman_encoding(data)
+            print("Encoded: {}".format(encoded_data))
+            print ("Encoded size: {}".format(sys.getsizeof(int(encoded_data, base=2))))
+
+            decoded_data = huffman_decoding(encoded_data, tree)
+            print("Decoded: {}\n".format(decoded_data))
+            print ("Decoded size: {}".format(sys.getsizeof(decoded_data)))
+
+    run_edge_case_no_data()
+    run_edge_case_repeating_char()
+    run_test_cases()
