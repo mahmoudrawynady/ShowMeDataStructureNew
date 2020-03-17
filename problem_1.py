@@ -134,3 +134,20 @@ our_cache.set(1, 1)
 # expected output: "Can't perform operations on 0 capacity cache"
 print(our_cache.get(17))
 # expected output: -1
+print('\n-----------------------------------\n')
+#Test 4
+our_cache = LRU_Cache(1000)
+our_cache.set(60, 90)
+our_cache.set(70, 70)
+our_cache.set(80, 80)
+
+our_cache.set(1, 40)
+our_cache.set(0, 20)
+our_cache.set(2, 150)
+
+print(our_cache.get(50))
+# expected output: -1
+print(our_cache.get(2))
+# expected output: 150
+print(our_cache.get(750))
+# expected output: -1
